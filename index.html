@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🏁 카트라이더 리그 맵 밴픽 시뮬레이터 🏁</title>
+<style>
+  body { 
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; 
+    color: #333; 
+    margin: 0; 
+    padding: 0;
+    text-align: center; 
+    line-height: 1.6;
+    background-color: #f0f2f5; 
+    transition: background-color 0.5s ease; 
+  }
+  .container { 
+    max-width: 960px; 
+    margin: 30px auto; 
+    background-color: #fff; 
+    padding: 30px; 
+    border-radius: 15px; 
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+    position: relative; 
+  }
+  /* 시작 화면 */
+  #start-screen {
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    min-height: 100vh; 
+    padding: 50px 20px;
+    background-color: #f8f9fa;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    position: fixed; top:0; left:0; width:100%; height:100%; z-index: 1000; 
+  }
+  #start-screen h1 {
+    color: #2c3e50;
+    font-size: 2.2em;
+    margin-bottom: 30px;
+  }
+  .team-input-group {
+    margin-bottom: 20px;
+    text-align: left;
+    display: flex; 
+    align-items: center;
+    width: 80%; 
+    max-width: 400px;
+  }
+  .team-input-group label {
+    flex-shrink: 0; 
+    font-size: 1.1em;
+    color: #555;
+    margin-right: 15px;
+    min-width: 90px; 
+  }
+  .team-input-group input[type="text"] {
+    flex-grow: 1; 
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1.1em;
+  }
+  #start-button {
+    background-color: #3498db;
+    color: white;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.4em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin-top: 30px;
+  }
+  #start-button:hover {
+    background-color: #2980b9;
+  }
+
+  /* 동전 던지기 화면 스타일 */
+  #coin-toss-screen {
+    display: none; 
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 50px 20px;
+    background-color: #f8f9fa;
+    position: fixed; top:0; left:0; width:100%; height:100%; z-index: 1000;
+  }
+  #coin-toss-screen h2 {
+    font-size: 2em; margin-bottom: 30px; color: #2c3e50;
+    border-bottom: none; 
+  }
+  #coin {
+    width: 150px; height: 150px;
+    border-radius: 50%;
+    background-color: #ffd700; 
+    border: 5px solid #ccab00;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3em; font-weight: bold; color: #fff;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    transition: transform 0.5s ease-out;
+  }
+  #coin.flipping {
+    animation: flip 0.8s ease-out;
+  }
+  @keyframes flip {
+    0% { transform: rotateY(0deg); }
+    50% { transform: rotateY(180deg); }
+    100% { transform: rotateY(360deg); }
+  }
+  #toss-result {
+    font-size: 1.8em; font-weight: bold; margin-top: 30px;
+    color: #34495e;
+  }
+
+  /* ✨ 슬롯 머신 모달 스타일 ✨ */
+  #roulette-modal {
+    display: none; 
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100000; 
+  }
+  .roulette-content {
+    background: #fff; padding: 40px; border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 400px; width: 90%;
+    text-align: center; transform: scale(0.9); opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  #roulette-modal.show .roulette-content {
+    transform: scale(1); opacity: 1;
+  }
+  .roulette-content h3 {
+    font-size: 2.2em; color: #2c3e50; margin-bottom: 30px;
+    border-bottom: none;
+  }
+  /* 슬롯 머신 컨테이너 (단일 맵 크기) */
+  .slot-container {
+      width: 100%;
+      height: 55px; /* 슬롯 높이 - 하나의 맵만 보이게 */
+      border: 5px solid #f39c12;
+      border-radius: 10px;
+      overflow: hidden; 
+      margin: 0 auto 30px;
+      position: relative;
+      background-color: #ecf0f1;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.3); 
+  }
+  /* 슬롯 아이템 리스트 */
+  .slot-list {
+      position: absolute;
+      top: 0; left: 0; width: 100%;
+      transition: transform 0.08s linear; /* 더 빠른 스크롤 속도 */
+  }
+  /* 슬롯 개별 아이템 */
+  .slot-item {
+      height: 55px; /* 각 맵 아이템의 높이 */
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2em; font-weight: bold;
+      color: #333;
+      border-bottom: 1px solid #ddd;
+      box-sizing: border-box; 
+      background-color: #fff; 
+  }
+
+  .roulette-result-display {
+    font-size: 2.5em; font-weight: bold; color: #2ecc71; margin-bottom: 20px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  }
+  /* ✨ 확인 버튼 삭제 ✨ */
+  #roulette-ok-button {
+      display: none; /* 확인 버튼 숨김 (자동 전환) */
+  }
+
+  /* 밴픽 화면 */
+  h1 { 
+    color: #2c3e50; margin-bottom: 25px; 
+    font-size: 2.5em; font-weight: 800;
+  }
+  h2 {
+    color: #34495e; margin-top: 30px; margin-bottom: 20px;
+    font-size: 1.8em; font-weight: 700;
+    border-bottom: 2px solid #eee; padding-bottom: 10px;
+  }
+  .timer-display { 
+    font-size: 2.2em; font-weight: bold; color: #e74c3c; 
+    margin-bottom: 25px; margin-top: 40px; 
+    letter-spacing: 1px; text-align: center;
+  }
+  .current-turn-info { 
+    font-size: 1.7em; font-weight: 700; padding: 15px; border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    border: 2px solid #aaa; margin-top: 20px; 
+  }
+
+  .search-box { margin-bottom: 30px; transition: opacity 0.5s ease; }
+  .search-box input {
+    width: 70%; padding: 14px 20px; border: 1px solid #ddd; border-radius: 30px;
+    font-size: 1.1em; outline: none; box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .search-box input::placeholder { color: #aaa; }
+  .search-box input:focus {
+    border-color: #3498db; box-shadow: 0 3px 12px rgba(52, 152, 219, 0.2);
+  }
+
+  .map-grid-section { transition: opacity 0.5s ease; }
+  .map-grid { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 18px; margin-top: 30px; justify-content: center;
+  }
+  .map-item {
+    background-color: #ecf0f1; border-radius: 10px; padding: 18px;
+    cursor: pointer; transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+    font-size: 1.15em; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    height: 90px; word-break: keep-all; 
+  }
+  .map-item:hover:not(.picked):not(.banned):not(.disabled) {
+    transform: translateY(-8px); background-color: #dbe4e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  .map-item.picked { 
+    background-color: #2ecc71; color: white; box-shadow: none;
+    border: 2px solid #28a745; cursor: default;
+  }
+  .map-item.banned { 
+    background-color: #e74c3c; color: white; cursor: default; 
+    text-decoration: line-through; opacity: 0.8; box-shadow: none;
+    border: 2px solid #c0392b; 
+  }
+  .map-item.disabled { 
+    opacity: 0.6; cursor: not-allowed; filter: grayscale(10%);
+  }
+  .result-display { 
+    margin-top: 30px; padding-top: 30px; border-top: 1px solid #eee; 
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; 
+  }
+  .result-section { 
+    flex: 1; min-width: 300px; padding: 15px;
+    border: 1px solid #eee; border-radius: 10px;
+    background: #fcfcfc; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .result-section h3 {
+    font-size: 1.3em; color: #555; margin-bottom: 15px;
+    border-bottom: 1px dashed #eee; padding-bottom: 5px;
+  }
+  .result-item-list { 
+    display: flex; flex-wrap: wrap; justify-content: center; 
+    gap: 10px; margin-top: 5px; 
+  }
+  .result-item { 
+    background: #e0f2f7; padding: 8px 12px; border-radius: 6px; 
+    font-size: 0.95em; color: #34495e; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    flex-shrink: 0; position: relative;
+  }
+  .result-item.banned-map { 
+    background: #ffcccc; color: #c0392b; text-decoration: line-through;
+    border: 1px solid #c0392b;
+  }
+  /* 맵 순서 번호 */
+  .result-item .order-number {
+    font-weight: bold; color: #555; margin-right: 6px; user-select: none;
+  }
+  /* 밴된 맵에서는 번호 숨기기 */
+  #bannedMapsList .result-item .order-number { display: none; }
+  .game-status {
+    font-size: 1.4em; font-weight: 600; margin-top: 25px; color: #666;
+  }
+  .game-status.finished { 
+    color: #333; font-size: 1.8em;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+  }
+  .timeout-message { 
+    color: #e74c3c; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;
+  }
+  /* 팀 이름 박스 양옆 고정, 화면 상단 딱 붙고 제목과 간섭 없음 */
+  .team-display-area {
+    position: fixed;
+    top: 60px; left: 10px; right: 10px;
+    display: flex; justify-content: space-between;
+    z-index: 10000; pointer-events: none;
+  }
+  .team-display-name {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 10px;
+    border-radius: 10px; padding: 14px 22px;
+    font-weight: bold; font-size: 1.6em; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    color: white; min-width: 150px; justify-content: center; user-select: none;
+  }
+  .team-display-name.blue { background-color: #007bff; }
+  .team-display-name.red { background-color: #e74c3c; }
+  .team-display-name.active {
+    box-shadow: 0 0 20px 6px rgba(255, 255, 255, 0.85);
+    transform: scale(1.07); transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .team-display-name .color-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    background-color: white; border: 1px solid rgba(0,0,0,0.2);
+  }
+  /* ✨ 랜덤 맵 선택 버튼 스타일 ✨ */
+  .map-item.random-pick-button {
+      background-color: #9b59b6; /* 보라색 */
+      color: white;
+      border: 2px solid #8e44ad;
+  }
+  .map-item.random-pick-button:hover:not(.picked):not(.banned):not(.disabled) {
+      background-color: #8e44ad;
+      transform: translateY(-5px);
+  }
+</style>
+</head>
+<body>
+  <!-- 시작 화면 -->
+  <div id="start-screen">
+    <div style="background:#fff; padding:30px; border-radius:15px; box-shadow:0 8px 25px rgba(0,0,0,0.15); max-width:500px; margin:auto;">
+      <h1>🏁 카트라이더 맵 밴픽 시뮬레이터 🏁</h1>
+      <div class="team-input-group">
+        <label for="ourTeamNameInput">우리 팀 이름:</label>
+        <input type="text" id="ourTeamNameInput" placeholder="예: 무한도전" value="Blue Team" />
+      </div>
+      <div class="team-input-group">
+        <label for="opponentTeamNameInput">상대 팀 이름:</label>
+        <input type="text" id="opponentTeamNameInput" placeholder="예: 에이스팀" value="Red Team" />
+      </div>
+      <button id="start-button">밴픽 시작!</button>
+    </div>
+  </div>
+
+  <!-- 동전 던지기 화면 -->
+  <div id="coin-toss-screen">
+    <h2>선공 팀을 정합니다!</h2>
+    <div id="coin">?</div>
+    <div id="toss-result">동전을 클릭해주세요!</div>
+  </div>
+
+  <!-- ✨ 슬롯 머신 모달 ✨ -->
+  <div id="roulette-modal">
+    <div class="roulette-content">
+      <h3 id="rouletteTitle"></h3> <!-- ✨ 슬롯 머신 제목 (랜덤픽/시간초과에 따라 달라짐) -->
+      <div class="slot-container">
+          <div class="slot-list" id="slotList"></div>
+      </div>
+      <div class="roulette-result-display" id="rouletteResultDisplay"></div>
+      <!-- ✨ 확인 버튼 삭제 (자동 전환) ✨ -->
+    </div>
+  </div>
+
+
+  <!-- 밴픽 화면 -->
+  <div id="banpick-screen" style="display:none;">
+    <div class="container">
+      <!-- 팀 이름 박스 양옆 상단에 고정 -->
+      <div class="team-display-area">
+        <div id="ourTeamDisplay" class="team-display-name blue">
+          <div class="color-dot"></div> <span id="ourTeamNameDisplay"></span>
+        </div>
+        <div id="opponentTeamDisplay" class="team-display-name red">
+          <span id="opponentTeamNameDisplay"></span> <div class="color-dot"></div>
+        </div>
+      </div>
+
+      <h1>🏁 카트라이더 리그 맵 밴픽 시뮬레이터 🏁</h1>
+      <div class="timer-display" id="timer"></div>
+      <div class="current-turn-info" id="currentTurnInfo"></div>
+
+      <!-- 선택 / 밴 맵 최종 결과 -->
+      <div class="result-display">
+        <div class="result-section">
+          <h3>✔ 선택된 맵</h3>
+          <div id="pickedMapsList" class="result-item-list"></div>
+        </div>
+        <div class="result-section">
+          <h3>✖ 밴된 맵</h3>
+          <div id="bannedMapsList" class="result-item-list"></div>
+        </div>
+      </div>
+      <p class="game-status" id="gameStatus"></p>
+
+      <div id="mapSelectionArea" class="map-grid-section">
+        <div class="search-box">
+          <input type="text" id="mapSearchInput" placeholder="맵 이름으로 검색..." onkeyup="updateMapListUI()" />
+        </div>
+
+        <h2>맵 리스트</h2> 
+        <div class="map-grid" id="mapList"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const allMaps = [
+    "빌리지 남산", "비치 해변 드라이브",
+    "WKC 싱가폴 서킷", "1920 아슬아슬 비행장", "차이나 라사",
+    "차이나 용의 운하", "쥐라기 공룡 무덤", "차이나 바다의 운율",
+    "신화 차원의 관문", "더 월드", "어비스 운명의 갈림길",
+    "WKC 코리아 서킷", "월드 두바이 다운타운", "도검 야외 수련관",
+    "월드 리오 다운힐", "쥐라기 공룡 결투장", "문힐시티 폭우 속의 질주",
+    "메카닉 잊혀진 도시의 중심부", "빌리지 운명의 다리", "도검 용의 길", "네모 장난감 선물 공장",
+    "브로디 비밀의 연구소", "노르테유 전투 비행장", "(R)빌리지 고가의 질주", "빌리지 익스트림 경기장",
+    "월드 파리 에펠탑 다이브", "월드 뉴욕 대질주", "차이나 청명한 하늘의 서호", "신화 신들의 세계",
+    "팩토리 부비트랩 공장 탐험", "(R)해적 로비 절벽의 결투", "동화 마녀의 성", "문힐시티 지피의 시청광장",
+    "광산 아슬아슬 궤도 전차", "사막 놀라운 공룡 유적지", "네모 강철바위 용광로", "동화 잠자는 숲속의 거인" ,
+    "WKC 상해 서킷", "노르테유 스카이웨이",
+    "카멜롯 팬드래건 캐슬", "신화 오딘의 궁전", "올림포스 제우스시티",
+    "월드 이탈리아 여행", "카멜롯 외곽 순찰로", "어비스 바다 소용돌이",
+    "차이나 서안 병마용", "빌리지 만리장성", "해적 로비 절벽의 결투",
+    "님프 바다신전의 비밀", "포레스트 지그재그", "WKC 브라질 서킷",
+    "사막 빙글빙글 공사장", "대저택 은밀한 지하실", "차이나 황산",
+    "해적 숨겨진 보물", "빌리지 붐힐 터널", "아이스 갈라진 빙산", "황금문명 비밀장치의 위협",
+    "네모 산타의 비밀 공간", "황금문명 오르에트 황금 좌표", "차이나 골목길 대질주", "해적 가파른 감시탑",
+    "도검 구름의 협곡", "팩토리 두 개의 공장", "해적 상어섬의 비밀", "포레스트 오싹한 공중다리",
+    "포레스트 대관령", "광산 3개의 지름길", "쥐라기 공룡섬 대모험", "WKC 투어링 랠리",
+    "아이스 아찔한 헬기 점프", "어비스 숨겨진 바닷길", "사막 오래된 송수관", "공동묘지 해골성 대탐험" ,
+    "올림포스 하늘의 신전", "동화나라 이상한 나라의 문", "노르테유 익스프레스", "광산 꼬불꼬불 다운힐",
+    "팩토리 미완성 5구역", "포레스트 아찔한 다운힐", "공동묘지 마왕의 초대", "아이스 설산 다운힐",
+    "(R)포레스트 지그재그", "문힐시티 숨겨진 지하터널", "광산 위험한 제련소", "차이나 용의 성지",
+    "해적 대해적 로두마니", "아이스 부서진 빙산" 
+  ];
+  
+  let pickedMaps = []; 
+  let currentBannedMaps = []; 
+
+  // 고정 맵 설정
+  const FIXED_MAP = "빌리지 고가의 질주"; // 여기에 원하는 고정맵 이름 입력
+  const RANDOM_MAP_OPTION = "랜덤 맵 선택"; // 랜덤 맵 옵션
+
+  let teamAMappedInfo = { name: "Blue Team", color: "#007bff" }; 
+  let teamBMappedInfo = { name: "Red Team", color: "#e74c3c" }; 
+
+  let ourTeamName = "Blue Team"; 
+  let opponentTeamName = "Red Team"; 
+  const ourTeamColor = "#007bff"; 
+  const opponentTeamColor = "#e74c3c";
+
+  let currentTurnInternal = '팀 A'; 
+  let currentPhase = '픽'; 
+
+  const phasePlan = [
+    { type: '픽', team: '팀 A' }, 
+    { type: '픽', team: '팀 B' }, 
+    { type: '밴', team: '팀 A' }, 
+    { type: '밴', team: '팀 B' }, 
+    { type: '픽', team: '팀 A' }, 
+    { type: '픽', team: '팀 B' }, 
+    { type: '밴', team: '팀 A' }, 
+    { type: '밴', team: '팀 B' }, 
+    { type: '픽', team: '팀 A' }, 
+    { type: '픽', team: '팀 B' }   
+  ];
+  let currentPhaseIndex = 0; 
+
+  const totalPicksNeeded = 7; 
+  const pickTimeLimit = 30; 
+  let timerInterval;
+  let timeLeft = pickTimeLimit;
+
+  // HTML 요소들 가져오기
+  const startScreen = document.getElementById('start-screen'); 
+  const coinTossScreen = document.getElementById('coin-toss-screen'); 
+  const banpickScreen = document.getElementById('banpick-screen'); 
+
+  const ourTeamNameInput = document.getElementById('ourTeamNameInput'); 
+  const opponentTeamNameInput = document.getElementById('opponentTeamNameInput'); 
+  const startButton = document.getElementById('start-button'); 
+
+  const coinElement = document.getElementById('coin'); 
+  const tossResultElement = document.getElementById('toss-result'); 
+
+  // 슬롯 머신 관련 요소들 (룰렛 모달 -> 슬롯 머신)
+  const rouletteModal = document.getElementById('roulette-modal'); 
+  const slotList = document.getElementById('slotList'); 
+  const rouletteResultDisplay = document.getElementById('rouletteResultDisplay'); 
+  const rouletteTitle = document.getElementById('rouletteTitle'); // 슬롯 머신 제목
+
+  const mapSelectionArea = document.getElementById('mapSelectionArea'); 
+
+  const mapListDiv = document.getElementById('mapList');
+  const pickedMapsListDiv = document.getElementById('pickedMapsList');
+  const bannedMapsListDiv = document.getElementById('bannedMapsList'); 
+  const timerDisplay = document.getElementById('timer');
+  const currentTurnInfoDisplay = document.getElementById('currentTurnInfo'); 
+  const gameStatusDisplay = document.getElementById('gameStatus');
+  const mapSearchInput = document.getElementById('mapSearchInput');
+
+  const ourTeamInfoBox = document.getElementById('ourTeamDisplay');
+  const opponentTeamInfoBox = document.getElementById('opponentTeamDisplay');
+  const ourTeamNameDisplay = document.getElementById('ourTeamNameDisplay');
+  const opponentTeamNameDisplay = document.getElementById('opponentTeamNameDisplay');
+
+  // 내부 팀 명(팀 A/B)에 매핑된 실제 팀 정보 반환
+  function getTeamInfo(internalTeam) {
+    if (internalTeam === '팀 A') {
+      return teamAMappedInfo;
+    } else {
+      return teamBMappedInfo;
+    }
+  }
+
+  // 색상을 연하게 만드는 함수 (Hex to RGBA 후 투명도 적용)
+  function hexToRgba(hex, alpha) {
+    let r = parseInt(hex.slice(1, 3), 16),
+        g = parseInt(hex.slice(3, 5), 16),
+        b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function updateMapListUI() { 
+    const searchTerm = mapSearchInput.value.toLowerCase().trim(); 
+    mapListDiv.innerHTML = ''; 
+
+    const searchTermNoSpace = searchTerm.replace(/\s/g, '');
+    
+    // "랜덤 맵 선택" 옵션은 항상 목록에 포함 (필터링 제외)
+    let availableToSelectMaps = allMaps.filter(map => 
+      !pickedMaps.includes(map) && !currentBannedMaps.includes(map) && map !== FIXED_MAP
+    );
+    
+    let filteredAndAvailableMaps = availableToSelectMaps.filter(map => {
+        const mapLower = map.toLowerCase();
+        const mapNoSpace = mapLower.replace(/\s/g, '');
+
+        return mapLower.includes(searchTerm) || 
+               mapNoSpace.includes(searchTermNoSpace);
+    });
+
+    // 검색된 맵이 1개라도 있고, 고정맵이 아니며, 이미 픽/밴 되지 않은 경우에만 '랜덤 맵 선택'을 목록에 추가
+    // (검색어와 일치하는 일반 맵이 있을 경우 맨 앞에, 아니면 마지막에 추가)
+    if (availableToSelectMaps.length > 0) { // 선택 가능한 맵이 있어야 랜덤 옵션도 유효
+        if (filteredAndAvailableMaps.includes(RANDOM_MAP_OPTION) === false && 
+            (searchTerm.includes(RANDOM_MAP_OPTION.toLowerCase().replace(/\s/g, '')) || searchTerm === "")) {
+            if (filteredAndAvailableMaps.length === 0 && searchTerm !== "") { 
+                filteredAndAvailableMaps = [RANDOM_MAP_OPTION]; 
+            } else if (searchTerm === "") { 
+                filteredAndAvailableMaps = [RANDOM_MAP_OPTION, ...filteredAndAvailableMaps];
+            } else { 
+                 if (RANDOM_MAP_OPTION.toLowerCase().replace(/\s/g, '').includes(searchTermNoSpace)) {
+                    filteredAndAvailableMaps = [RANDOM_MAP_OPTION, ...filteredAndAvailableMaps.filter(map => map !== RANDOM_MAP_OPTION)];
+                 }
+            }
+        }
+    }
+
+    filteredAndAvailableMaps.forEach(map => {
+      const mapItem = document.createElement('div');
+      mapItem.classList.add('map-item');
+      mapItem.textContent = map;
+      
+      if (map === RANDOM_MAP_OPTION) {
+          mapItem.classList.add('random-pick-button'); // ✨ 버튼 스타일 추가
+          mapItem.onclick = () => {
+              const mapsForRandomPick = allMaps.filter(m => 
+                !pickedMaps.includes(m) && !currentBannedMaps.includes(m) && m !== FIXED_MAP
+              );
+              if (mapsForRandomPick.length > 0) {
+                  const randomChosenMap = mapsForRandomPick[Math.floor(Math.random() * mapsForRandomPick.length)];
+                  // ✨ 슬롯 머신 제목 변경
+                  triggerSlotMachineAnimation(randomChosenMap, mapsForRandomPick, 'user_random_pick'); 
+              } else {
+                  currentTurnInfoDisplay.innerHTML = `<span class="timeout-message">[선택 가능한 맵 없음!]</span><br> ${currentTurnInfoDisplay.innerHTML}`;
+              }
+          };
+      } else {
+          mapItem.onclick = () => selectMap(map); 
+      }
+      mapListDiv.appendChild(mapItem);
+    });
+  }
+
+  function updateOverallUI() { 
+    const currentTurnTeamInfo = getTeamInfo(currentTurnInternal);
+
+    document.body.style.backgroundColor = hexToRgba(currentTurnTeamInfo.color, 0.1);
+
+    currentTurnInfoDisplay.style.backgroundColor = hexToRgba(currentTurnTeamInfo.color, 0.1);
+    currentTurnInfoDisplay.style.borderColor = currentTurnTeamInfo.color;
+    currentTurnInfoDisplay.style.color = currentTurnTeamInfo.color;
+
+    ourTeamInfoBox.classList.remove('active');
+    opponentTeamInfoBox.classList.remove('active');
+    if (currentTurnInternal === teamAMappedInfo.internalName) { 
+        if (ourTeamName === teamAMappedInfo.name) { 
+            ourTeamInfoBox.classList.add('active');
+        } else { 
+            opponentTeamInfoBox.classList.add('active');
+        }
+    } else { 
+        if (ourTeamName === teamBMappedInfo.name) { 
+            ourTeamInfoBox.classList.add('active');
+        } else { 
+            opponentTeamInfoBox.classList.add('active');
+        }
+    }
+
+    ourTeamNameDisplay.textContent = ourTeamName;
+    opponentTeamNameDisplay.textContent = opponentTeamName;
+
+    pickedMapsListDiv.innerHTML = pickedMaps.map((map, idx) => {
+      if (map === FIXED_MAP) {
+        return `<div class="result-item"><span class="order-number">고정맵</span> ${map}</div>`;
+      } else {
+        return `<div class="result-item"><span class="order-number">${idx+1}.</span> ${map}</div>`;
+      }
+    }).join('');
+
+    bannedMapsListDiv.innerHTML = currentBannedMaps.map(map => 
+      `<div class="result-item banned-map">${map}</div>`).join('');
+
+    if (pickedMaps.length === totalPicksNeeded) {
+      gameStatusDisplay.textContent = '맵 밴픽 완료! 게임을 시작하세요!'; 
+      gameStatusDisplay.classList.add('finished'); 
+      currentTurnInfoDisplay.innerHTML = `밴픽이 완료되었습니다!`; 
+      timerDisplay.textContent = '게임 준비 완료!';
+      clearInterval(timerInterval); 
+      mapSearchInput.disabled = true; 
+      document.body.style.backgroundColor = '#f0f2f5';
+
+      mapSelectionArea.style.opacity = '0'; 
+      setTimeout(() => { mapSelectionArea.style.display = 'none'; }, 500); 
+    } else {
+      gameStatusDisplay.classList.remove('finished');
+      gameStatusDisplay.textContent = `현재 ${pickedMaps.length} / ${totalPicksNeeded} 맵 선택됨`;
+
+      const phase = phasePlan[currentPhaseIndex];
+      let actionText = '';
+      if (phase.type === '픽') {
+        actionText = "맵을 <span style='font-size:1.1em; color: inherit;'>선택하세요!</span>"; 
+      } else {
+        actionText = "맵을 <span style='font-size:1.1em; color: inherit;'>밴하세요!</span>"; 
+      }
+      currentTurnInfoDisplay.innerHTML = `[${currentTurnTeamInfo.name}] ${phase.type} 페이즈: ${actionText}`; 
+      mapSearchInput.disabled = false; 
+
+      mapSelectionArea.style.display = 'block'; 
+      setTimeout(() => { mapSelectionArea.style.opacity = '1'; }, 0); 
+    }
+    updateMapListUI(); 
+  }
+
+  function selectMap(mapName) {
+    if (mapName === RANDOM_MAP_OPTION) return; 
+
+    if (pickedMaps.length === totalPicksNeeded) return; 
+
+    const currentAction = phasePlan[currentPhaseIndex];
+
+    if (currentAction.type === '픽') {
+      pickedMaps.push(mapName);
+      console.log(`${getTeamInfo(currentTurnInternal).name}이(가) ${mapName}을(를) 픽했습니다. (총 ${pickedMaps.length}개)`);
+    } else { 
+      currentBannedMaps.push(mapName);
+      console.log(`${getTeamInfo(currentTurnInternal).name}이(가) ${mapName}을(를) 밴했습니다. (총 ${currentBannedMaps.length}개 밴됨)`);
+    }
+
+    clearInterval(timerInterval); 
+    mapSearchInput.value = ''; 
+    nextAction(); 
+  }
+
+  function startTimer() {
+    timeLeft = pickTimeLimit; 
+    timerDisplay.textContent = `남은 시간: ${timeLeft}초`;
+    clearInterval(timerInterval); 
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = `남은 시간: ${timeLeft}초`;
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        
+        const availableMapsToSelect = allMaps.filter(map => 
+          !pickedMaps.includes(map) && !currentBannedMaps.includes(map) && map !== FIXED_MAP
+        );
+        let randomMap = '';
+        if (availableMapsToSelect.length > 0) {
+          randomMap = availableMapsToSelect[Math.floor(Math.random() * availableMapsToSelect.length)];
+        } else {
+          randomMap = '선택 가능한 맵 없음'; // 비상 상황: 맵이 없어서 랜덤 선택 불가
+        }
+
+        // ✨ 슬롯 머신 애니메이션 시작 (타임오버 멘트)
+        triggerSlotMachineAnimation(randomMap, availableMapsToSelect, 'timeout');
+      }
+    }, 1000);
+  }
+
+  // ✨ 슬롯 머신 애니메이션 함수
+  function triggerSlotMachineAnimation(selectedMap, mapOptions, triggerSource) {
+    rouletteModal.style.display = 'flex';
+    setTimeout(() => rouletteModal.classList.add('show'), 10); 
+
+    // ✨ 멘트 변경
+    if (triggerSource === 'timeout') {
+        rouletteTitle.textContent = '시간 초과! 랜덤 맵 선택!';
+    } else { // user_random_pick
+        rouletteTitle.textContent = '랜덤 맵 선택 진행!';
+    }
+
+    slotList.innerHTML = ''; 
+    rouletteResultDisplay.textContent = ''; 
+    
+    // mapOptions가 비어있을 경우 (더 이상 뽑을 맵이 없을 경우)
+    if (mapOptions.length === 0) {
+        rouletteResultDisplay.textContent = '더 이상 선택 가능한 맵이 없습니다!';
+        // 다음 페이즈로 자동 전환 (멘트 노출 시간 1초, 전환 2초 = 총 3초)
+        setTimeout(() => {
+            rouletteModal.classList.remove('show');
+            setTimeout(() => rouletteModal.style.display = 'none', 300); 
+            // 맵 없음 메시지를 현재 턴 정보에 표시
+            updateTurnInfoMessageAfterRandom(triggerSource, true); // no_maps_available 플래그 추가
+            nextAction();
+        }, 3000);
+        return;
+    }
+
+    const slotItemHeight = 55; // CSS의 .slot-item height와 일치
+    const totalSpinCycles = 20; // 최소 20바퀴 회전 (더 길게 느껴지도록)
+    
+    // 최종 목표 인덱스: 마지막에 멈출 맵의 인덱스
+    const selectedMapIndexInOptions = mapOptions.indexOf(selectedMap);
+    const targetIndexInList = (mapOptions.length * totalSpinCycles) + selectedMapIndexInOptions;
+
+    // 슬롯 리스트 채우기 (끝까지 스크롤될 수 있도록 충분한 아이템 추가)
+    for (let i = 0; i < targetIndexInList + 5; i++) { // 여유분 5개 추가
+        const mapToDisplay = mapOptions[i % mapOptions.length];
+        const slotItem = document.createElement('div');
+        slotItem.classList.add('slot-item');
+        slotItem.textContent = mapToDisplay;
+        slotList.appendChild(slotItem);
+    }
+    
+    // 초기화 시 트랜지션 제거
+    slotList.style.transition = 'none'; 
+    slotList.style.transform = 'translateY(0)'; 
+    
+    void slotList.offsetHeight; 
+
+    // 빠르게 회전 (첫 0.5초)
+    const initialSpinDuration = 0.5; 
+    slotList.style.transition = `transform ${initialSpinDuration}s linear`;
+    slotList.style.transform = `translateY(${-targetIndexInList * slotItemHeight - slotItemHeight * 2}px)`; 
+
+    setTimeout(() => {
+        // 최종 위치로 튕기듯이 멈춤 (나머지 1.5초, 탄성 포함)
+        const finalStopDuration = 1.5; 
+        const bounceEasing = 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'; 
+        slotList.style.transition = `transform ${finalStopDuration}s ${bounceEasing}`;
+        slotList.style.transform = `translateY(${-targetIndexInList * slotItemHeight + ((slotList.parentElement.offsetHeight - slotItemHeight) / 2)}px)`;
+        
+        slotList.ontransitionend = () => {
+            rouletteResultDisplay.textContent = `선택된 맵: ${selectedMap}`; // 결과 맵 표시
+            slotList.ontransitionend = null; 
+
+            // ✨ 1초 노출 후, 2초 뒤 자동 전환 (총 3초)
+            setTimeout(() => {
+                rouletteModal.classList.remove('show');
+                setTimeout(() => rouletteModal.style.display = 'none', 300); 
+                
+                const currentAction = phasePlan[currentPhaseIndex];
+                if (selectedMap !== '선택 가능한 맵 없음') { 
+                    if (currentAction.type === '픽') {
+                        pickedMaps.push(selectedMap);
+                        console.log(`${getTeamInfo(currentTurnInternal).name} 시간 초과로 ${selectedMap} 랜덤 픽됨.`);
+                    } else {
+                        currentBannedMaps.push(selectedMap);
+                        console.log(`${getTeamInfo(currentTurnInternal).name} 시간 초과로 ${selectedMap} 랜덤 밴됨.`);
+                    }
+                }
+                updateTurnInfoMessageAfterRandom(triggerSource); // 메시지 업데이트
+                nextAction(); // 다음 페이즈 진행
+            }, 1000); // 맵이 도착하고 1초 뒤에 다음 setTimeout 시작
+        };
+    }, initialSpinDuration * 1000); // 0.5초 뒤에 다음 스텝 시작
+  }
+  
+  // 랜덤픽 후 턴 정보 메시지 업데이트 함수
+  function updateTurnInfoMessageAfterRandom(triggerSource, noMapsAvailable = false) {
+      const currentTurnTeamInfo = getTeamInfo(currentTurnInternal);
+      const phase = phasePlan[currentPhaseIndex];
+      let baseActionText = '';
+      if (phase.type === '픽') {
+        baseActionText = "맵을 <span style='font-size:1.1em; color: inherit;'>선택하세요!</span>"; 
+      } else {
+        baseActionText = "맵을 <span style='font-size:1.1em; color: inherit;'>밴하세요!</span>"; 
+      }
+
+      if (noMapsAvailable) { // 맵이 없을 경우
+          currentTurnInfoDisplay.innerHTML = `<span class="timeout-message">[더 이상 맵 없음!]</span><br> [${currentTurnTeamInfo.name}] ${phase.type} 페이즈: ${baseActionText}`;
+      } else if (triggerSource === 'timeout') {
+          currentTurnInfoDisplay.innerHTML = `<span class="timeout-message">[시간 초과!]</span><br> [${currentTurnTeamInfo.name}] ${phase.type} 페이즈: ${baseActionText}`; 
+      } else { // user_random_pick
+          currentTurnInfoDisplay.innerHTML = `<span class="timeout-message">[랜덤 맵 선택됨!]</span><br> [${currentTurnTeamInfo.name}] ${phase.type} 페이즈: ${baseActionText}`;
+      }
+  }
+
+  function nextAction() {
+    if (pickedMaps.length === totalPicksNeeded) {
+      updateOverallUI(); 
+      return;
+    }
+
+    currentPhaseIndex++; 
+
+    if (currentPhaseIndex >= phasePlan.length) {
+      console.warn("모든 밴픽 페이즈가 완료되었으나 맵이 7개 미만으로 선택되었습니다.");
+      updateOverallUI(); 
+      return;
+    }
+    
+    const nextActionData = phasePlan[currentPhaseIndex];
+    currentTurnInternal = nextActionData.team; 
+    currentPhase = nextActionData.type; 
+
+    updateOverallUI(); 
+    startTimer(); 
+  }
+
+  // 동전 던지기 로직
+  function handleCoinToss() {
+    coinElement.classList.add('flipping');
+    tossResultElement.textContent = "동전 던지는 중...";
+
+    setTimeout(() => {
+      coinElement.classList.remove('flipping');
+      const isHeads = Math.random() < 0.5; 
+      let tossOutcomeText = "";
+
+      if (isHeads) { 
+        teamAMappedInfo = { name: ourTeamName, color: ourTeamColor, internalName: '팀 A' };
+        teamBMappedInfo = { name: opponentTeamName, color: opponentTeamColor, internalName: '팀 B' };
+        tossOutcomeText = `앞면! ${ourTeamName}이 선공입니다!`;
+      } else { 
+        teamAMappedInfo = { name: opponentTeamName, color: opponentTeamColor, internalName: '팀 A' };
+        teamBMappedInfo = { name: ourTeamName, color: ourTeamColor, internalName: '팀 B' };
+        tossOutcomeText = `뒷면! ${opponentTeamName}이 선공입니다!`;
+      }
+      
+      tossResultElement.textContent = tossOutcomeText;
+      coinElement.textContent = isHeads ? "앞면" : "뒷면";
+
+      setTimeout(() => {
+        coinTossScreen.style.display = 'none'; 
+        banpickScreen.style.display = 'block'; 
+
+        // 밴픽 시작! (고정맵 포함)
+        pickedMaps = [FIXED_MAP]; 
+        currentBannedMaps = [];
+        currentPhaseIndex = 0; 
+
+        currentTurnInternal = '팀 A'; 
+        currentPhase = phasePlan[0].type; 
+        
+        ourTeamNameDisplay.textContent = ourTeamName;
+        opponentTeamNameDisplay.textContent = opponentTeamName;
+
+        mapSearchInput.value = ''; 
+        mapSearchInput.disabled = false; 
+        
+        updateOverallUI(); 
+        startTimer();
+      }, 2000); 
+    }, 1000); 
+  }
+
+  startButton.addEventListener('click', () => {
+    ourTeamName = ourTeamNameInput.value.trim() || "Blue Team";
+    opponentTeamName = opponentTeamNameInput.value.trim() || "Red Team";
+
+    startScreen.style.display = 'none'; 
+    coinTossScreen.style.display = 'flex'; 
+    coinElement.textContent = "?"; 
+    tossResultElement.textContent = "동전을 클릭해주세요!"; 
+  });
+
+  coinElement.addEventListener('click', handleCoinToss); 
+
+  document.addEventListener('DOMContentLoaded', () => {
+    startScreen.style.display = 'block'; 
+    coinTossScreen.style.display = 'none'; 
+    banpickScreen.style.display = 'none';
+    rouletteModal.style.display = 'none'; 
+  });
+</script>
+</body>
+</html>
