@@ -446,7 +446,7 @@
   let currentTurnInternal = '팀 A';
   let currentPhase = '밴'; // 첫 시작이 밴이네!
   // totalPicksNeeded도 바뀐 픽 갯수에 맞춰줘야 함
-  const totalPicksNeeded = 9; // 새 밴픽 순서에 픽이 총 9번 있어
+  const totalPicksNeeded = 13; // 새 밴픽 순서에 픽이 총 9번 있어
 
   const phasePlan = [
     { type: '밴', team: '팀 A' },
@@ -471,7 +471,7 @@
   ];
   let currentPhaseIndex = 0;
 
-  const pickTimeLimit = 30;
+  const pickTimeLimit = 20;
   let timerInterval;
   let timeLeft = pickTimeLimit;
 
@@ -904,3 +904,4 @@
 </body>
 
 </html>
+
